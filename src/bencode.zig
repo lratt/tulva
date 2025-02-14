@@ -2,7 +2,7 @@ const std = @import("std");
 
 pub const Token = union(enum) {
     string: []const u8,
-    integer: i64,
+    integer: []const u8,
     start_list,
     start_dict,
     start_integer,
@@ -76,8 +76,7 @@ pub const Scanner = struct {
                     while (self.cursor < self.input.len) : (self.cursor += 1) {
                         if (self.input[self.cursor] == 'e') {
                             const slice = self.takeValueSlice();
-                            const value = try std.fmt.parseInt(i64, slice, 10);
-                            const result = Token{ .integer = value };
+                            const result = Token{ .integer = slice };
                             self.cursor += 1;
                             self.state = .value;
                             return result;
