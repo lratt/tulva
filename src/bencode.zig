@@ -24,11 +24,8 @@ pub fn Parsed(comptime T: type) type {
 
 const State = enum {
     value,
-    start_list,
-    start_dict,
     string,
     integer,
-    terminator,
 };
 
 pub const Scanner = struct {
@@ -108,10 +105,6 @@ pub const Scanner = struct {
                     self.state = .value;
 
                     return Token{ .string = slice };
-                },
-                else => {
-                    std.log.debug("state not implemented for: {any}", .{self.state});
-                    return error.NotImplemented;
                 },
             }
         }
