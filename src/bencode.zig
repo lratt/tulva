@@ -94,13 +94,17 @@ pub const Scanner = struct {
                     while (self.cursor < self.input.len) : (self.cursor += 1) {
                         if (self.input[self.cursor] == 'e') {
                             const slice = self.takeValueSlice();
+
+                            if (slice.len == 0) {
+                                // TODO: error here, expected at least 1 digit
+                            }
+
                             const result = Token{ .integer = slice };
                             self.cursor += 1;
                             self.state = .value;
                             return result;
                         }
                     }
-                    return error.NotImplemented;
                 },
                 .string => {
                     while (self.cursor < self.input.len and self.input[self.cursor] != ':') : (self.cursor += 1) {}
@@ -157,28 +161,120 @@ pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scan
 
             return error.NotImplemented;
         },
-        .Array => |info| {
-            if (info.child != u8) return error.UnexpectedToken;
-            var t: T = undefined;
-            const token = try scanner.next();
-            const str = switch (token) {
-                .string => |s| s,
-                else => return error.UnexpectedToken,
-            };
-            @memcpy(t[0..str.len], str);
-            return t;
-        },
-        .Pointer => |info| {
-            if (info.child != u8) return error.UnexpectedToken;
-            const token = try scanner.next();
-            const str = switch (token) {
-                .string => |s| s,
-                else => return error.UnexpectedToken,
-            };
-            var list = std.ArrayList(u8).init(allocator);
-            try list.appendSlice(str);
-            return list.toOwnedSlice();
+        .Pointer => |ptr| {
+            switch (ptr.size) {
+                .One => {
+                    const value: *ptr.child = try allocator.create(ptr.child);
+                    value.* = try innerParse(ptr.child, allocator, scanner);
+                    return value;
+                },
+                .Slice => {
+                    switch (try scanner.peekToken()) {
+                        .string => {
+                            if (ptr.child != u8) {
+                                return error.UnexpectedToken;
+                            }
+
+                            const token = try scanner.next();
+                            return token.string;
+                        },
+                        .start_list => {
+                            if (.start_list != try scanner.next()) return error.UnexpectedToken; // skip `l`
+                            var list = std.ArrayList(ptr.child).init(allocator);
+
+                            while (true) {
+                                switch (try scanner.peekToken()) {
+                                    .terminator => break,
+                                    else => {},
+                                }
+
+                                const listItem = try innerParse(ptr.child, allocator, scanner);
+                                try list.append(listItem);
+                            }
+
+                            if (.terminator != try scanner.next()) return error.UnexpectedToken; // skip `e`
+
+                            return try list.toOwnedSlice();
+                        },
+                        else => return error.UnexpectedToken,
+                    }
+                },
+                else => @compileError("Unable to parse into type Pointer of size '" ++ ptr.size ++ "'"),
+            }
         },
         else => @compileError("Unable to parse into type '" ++ @typeName(T) ++ "'"),
     }
+}
+
+pub fn parse(comptime T: type, allocator: std.mem.Allocator, input: []const u8) !Parsed(T) {
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    errdefer arena.deinit();
+
+    var scanner = Scanner{
+        .input = input,
+        .allocator = arena.allocator(),
+    };
+
+    const value = try innerParse(T, arena.allocator(), &scanner);
+
+    return Parsed(T){
+        .arena = arena,
+        .value = value,
+    };
+}
+
+test "parse integer" {
+    const result = try parse(i64, std.testing.allocator, "i5e");
+    defer result.deinit();
+
+    try std.testing.expectEqual(5, result.value);
+}
+
+test "parse negative integer" {
+    const result = try parse(i64, std.testing.allocator, "i-5e");
+    defer result.deinit();
+
+    try std.testing.expectEqual(-5, result.value);
+}
+
+test "parse nil integer" {
+    const result = try parse(i64, std.testing.allocator, "ie");
+    defer result.deinit();
+
+    try std.testing.expectEqual(0, result.value);
+}
+
+test "parse string" {
+    const result = try parse([]const u8, std.testing.allocator, "5:hello");
+    defer result.deinit();
+
+    try std.testing.expectEqualStrings("hello", result.value);
+}
+
+test "parse empty string" {
+    const result = try parse([]const u8, std.testing.allocator, "0:");
+    defer result.deinit();
+
+    try std.testing.expectEqualStrings("", result.value);
+}
+
+test "parse empty list" {
+    const result = try parse([]const i64, std.testing.allocator, "le");
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{}, result.value);
+}
+
+test "parse single item list" {
+    const result = try parse([]const i64, std.testing.allocator, "li99999ee");
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{99999}, result.value);
+}
+
+test "parse multi item list" {
+    const result = try parse([]const i64, std.testing.allocator, "li123ei456ei789ee");
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{ 123, 456, 789 }, result.value);
 }
