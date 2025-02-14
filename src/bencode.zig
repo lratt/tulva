@@ -8,6 +8,14 @@ pub const Token = union(enum) {
     terminator,
 };
 
+pub const TokenType = enum {
+    string,
+    integer,
+    start_list,
+    start_dict,
+    terminator,
+};
+
 pub const ParseError = error{ OutOfMemory, InvalidCharacter, NotImplemented, Overflow };
 
 pub fn Parsed(comptime T: type) type {
@@ -38,6 +46,17 @@ pub const Scanner = struct {
         const slice = self.input[self.value_start..self.cursor];
         self.value_start = self.cursor;
         return slice;
+    }
+
+    pub fn peekToken(self: *Scanner) !TokenType {
+        switch (self.input[self.cursor]) {
+            '0'...'9' => return .string,
+            'i' => return .integer,
+            'd' => return .start_dict,
+            'l' => return .start_list,
+            'e' => return .terminator,
+            else => return error.UnexpectedToken,
+        }
     }
 
     pub fn next(self: *Scanner) !Token {
