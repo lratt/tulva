@@ -69,10 +69,7 @@ pub const Scanner = struct {
                             self.cursor += 1;
                             return Token.terminator;
                         },
-                        else => {
-                            std.debug.print("invalid c haracter: {any}", .{self.input[self.cursor]});
-                            return error.InvalidCharacter;
-                        },
+                        else => return error.UnexpectedToken,
                     }
                 },
                 .integer => {
