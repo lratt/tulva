@@ -45,7 +45,6 @@ pub const Scanner = struct {
         state_loop: while (true) {
             switch (self.state) {
                 .value => {
-                    std.log.debug("value state", .{});
                     switch (self.input[self.cursor]) {
                         '0'...'9' => {
                             self.state = .string;
@@ -77,7 +76,6 @@ pub const Scanner = struct {
                     }
                 },
                 .integer => {
-                    std.log.debug("integer state", .{});
                     while (self.cursor < self.input.len) : (self.cursor += 1) {
                         if (self.input[self.cursor] == 'e') {
                             const slice = self.takeValueSlice();
@@ -91,7 +89,6 @@ pub const Scanner = struct {
                     return error.NotImplemented;
                 },
                 .string => {
-                    std.log.debug("string state", .{});
                     while (self.cursor < self.input.len and self.input[self.cursor] != ':') : (self.cursor += 1) {}
                     const lenSlice = self.takeValueSlice();
                     const len = try std.fmt.parseInt(usize, lenSlice, 10);
@@ -112,7 +109,6 @@ pub const Scanner = struct {
 };
 
 pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scanner) !T {
-    std.log.debug("innerParse: {s}", .{@typeName(T)});
     switch (@typeInfo(T)) {
         .Struct => |info| {
             if (info.is_tuple) {
