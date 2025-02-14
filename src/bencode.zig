@@ -5,7 +5,6 @@ pub const Token = union(enum) {
     integer: []const u8,
     start_list,
     start_dict,
-    start_integer,
     terminator,
 };
 
@@ -106,6 +105,12 @@ pub const Scanner = struct {
 
 pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scanner) !T {
     switch (@typeInfo(T)) {
+        .Int => {
+            const intSlice = try scanner.next();
+            if (intSlice != Token.integer) return error.UnexpectedToken;
+            const int = try std.fmt.parseInt(T, intSlice, 10);
+            return int;
+        },
         .Struct => |info| {
             if (info.is_tuple) {
                 return error.NotImplemented;
