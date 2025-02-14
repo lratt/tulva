@@ -160,26 +160,6 @@ pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scan
             try list.appendSlice(str);
             return list.toOwnedSlice();
         },
-        // else => {
-        //     return error.NotImplemented;
-        // },
         else => @compileError("Unable to parse into type '" ++ @typeName(T) ++ "'"),
     }
 }
-//
-// pub fn parse(comptime T: type, allocator: std.mem.Allocator, input: []const u8) !Parsed(T) {
-//     var parsed = Parsed(T){
-//         .value = undefined,
-//         .arena = std.heap.ArenaAllocator.init(allocator),
-//     };
-//     errdefer parsed.arena.deinit();
-//
-//     const scanner = Scanner{
-//         .input = input,
-//         .allocator = parsed.arena.allocator(),
-//     };
-//
-//     parsed.value = try innerParse(T, scanner.arena.allocator(), scanner);
-//
-//     return parsed;
-// }
