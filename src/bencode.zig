@@ -106,9 +106,9 @@ pub const Scanner = struct {
 pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scanner) !T {
     switch (@typeInfo(T)) {
         .Int => {
-            const intSlice = try scanner.next();
-            if (intSlice != Token.integer) return error.UnexpectedToken;
-            const int = try std.fmt.parseInt(T, intSlice, 10);
+            const token = try scanner.next();
+            if (token != Token.integer) return error.UnexpectedToken;
+            const int = try std.fmt.parseInt(T, token.integer, 10);
             return int;
         },
         .Struct => |info| {
