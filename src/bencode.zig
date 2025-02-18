@@ -59,6 +59,24 @@ pub const Scanner = struct {
         }
     }
 
+    pub fn skipNext(self: *Scanner) !void {
+        var depth: usize = 0;
+
+        while (true) {
+            const token = try self.next();
+
+            switch (token) {
+                .start_dict, .start_list => depth += 1,
+                .terminator => depth -= 1,
+                else => {},
+            }
+
+            if (depth == 0) break;
+        } else {
+            return error{ExpectedTerminator};
+        }
+    }
+
     pub fn next(self: *Scanner) !Token {
         state_loop: while (true) {
             switch (self.state) {
@@ -156,6 +174,8 @@ pub fn innerParse(comptime T: type, allocator: std.mem.Allocator, scanner: *Scan
                         @field(t, field.name) = try innerParse(field.type, allocator, scanner);
                         break;
                     }
+                } else {
+                    try scanner.skipNext();
                 }
             }
 
