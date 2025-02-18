@@ -278,3 +278,14 @@ test "parse multi item list" {
 
     try std.testing.expectEqualSlices(i64, &.{ 123, 456, 789 }, result.value);
 }
+
+test "parse struct" {
+    const T = struct {
+        hello: []const u8,
+    };
+
+    const result = try parse(T, std.testing.allocator, "d5:hello5:world3:abc3:defe");
+    defer result.deinit();
+
+    try std.testing.expectEqualDeep(T{ .hello = "world" }, result.value);
+}
